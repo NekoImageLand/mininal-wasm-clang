@@ -1,6 +1,8 @@
-# mininal-wasm-clang
+# mininal-wasm-clang 
 
-> Proudly built by Firefly DataCenter
+[![Build and Release minimal-wasm-clang](https://github.com/NekoImageLand/mininal-wasm-clang/actions/workflows/build.yml/badge.svg)](https://github.com/NekoImageLand/mininal-wasm-clang/actions/workflows/build.yml)
+
+> **Proudly built on Firefly DataCenter**
 
 ## What does this component do?
 
