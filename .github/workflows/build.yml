@@ -18,7 +18,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt purge 'llvm-*' 'clang-*' && sudo apt autoremove
-          sudo apt-get install -y clang cmake ninja-build build-essential
+          sudo apt-get install -y clang lld cmake ninja-build build-essential
       - name: Checkout LLVM repository
         uses: actions/checkout@v4
         with:
