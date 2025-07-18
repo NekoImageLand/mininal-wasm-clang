@@ -1,0 +1,69 @@
+name: Build and Release minimal-wasm-clang
+
+on:
+  workflow_dispatch:
+    inputs:
+      clang-version:
+        description: 'Clang version to build'
+        required: true
+
+permissions: write-all
+
+jobs:
+  build-clang:
+    name: Build minimal-wasm-clang
+    runs-on: firefly
+    steps:
+      - name: Setup toolchains
+        run: |
+          sudo apt-get update
+          sudo apt purge 'llvm-*' 'clang-*' && sudo apt autoremove
+          sudo apt-get install -y clang cmake ninja-build build-essential
+      - name: Checkout LLVM repository
+        uses: actions/checkout@v4
+        with:
+          repository: llvm/llvm-project
+          ref: llvmorg-${{ github.event.inputs.clang-version }}
+      - name: Build minimal-wasm-clang
+        run: |
+          mkdir build && cd build
+          cmake -G Ninja \
+          -DCMAKE_BUILD_TYPE=MinSizeRel \
+          -DLLVM_ENABLE_PROJECTS="clang;lld" \
+          -DLLVM_TARGETS_TO_BUILD="WebAssembly" \
+          -DLLVM_USE_LINKER=lld \
+          -DLLVM_BUILD_LLVM_DYLIB=ON \
+          -DLLVM_LINK_LLVM_DYLIB=ON \
+          -DLLVM_ENABLE_LTO=Full \
+          -DCMAKE_C_COMPILER=clang \
+          -DCMAKE_CXX_COMPILER=clang++ \
+          -DCMAKE_C_FLAGS_MINSIZEREL="-Oz" \
+          -DCMAKE_CXX_FLAGS_MINSIZEREL="-Oz" \
+          -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld -Wl,--gc-sections -s" \
+          ../llvm
+          cmake --build .
+      - name: Pack minimal-wasm-clang
+        run: |
+          CLANG_VERSION=${{ github.event.inputs.clang-version }}
+          CLANG_MAJOR_VERSION=$(echo $CLANG_VERSION | cut -d'.' -f1)
+          DEST=minimal-wasm-clang_${CLANG_VERSION}
+          mkdir -p $DEST/bin
+          cp -a build/bin/{clang,clang++,clang-cpp,clang-cl,clang-${CLANG_MAJOR_VERSION},ld.lld,llc,lld,llvm-ar,llvm-as,llvm-dis,llvm-ranlib,llvm-strip,wasm-ld} $DEST/bin/
+          cp -a build/lib/{libLLVM.so.*,libclang.so.*,libclang-cpp.so.*} $DEST/bin/
+          mkdir -p $DEST/lib/clang/${CLANG_MAJOR_VERSION}/include
+          cp -r clang/lib/Headers/* $DEST/lib/clang/${CLANG_MAJOR_VERSION}/include/
+          tar -cJf ${DEST}.tar.xz ${DEST}
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create
+          '${{ github.ref_name }}'
+          --title 'minimal-wasm-clang_${{ github.event.inputs.clang-version }}'
+          --repo '${{ github.repository }}'
+          --notes ""
+      - name: Upload artifact signatures to GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          gh release upload '${{ github.ref_name }}' *.tar.xz --repo '${{ github.repository }}'
